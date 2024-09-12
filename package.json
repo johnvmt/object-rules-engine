@@ -1,0 +1,15 @@
+{
+  "name": "object-rules-engine",
+  "version": "0.1.3",
+  "dependencies": {
+    "object-subscriptions": "^1.0.1",
+    "object-path-utilities": "^1.0.1"
+  },
+  "repository": "https://github.com/johnvmt/object-rules-engine.git",
+  "author": {
+    "name": "John Murphy-Teixidor",
+    "email": "johnvmt@gmail.com"
+  },
+  "type": "module",
+  "main": "./src/exports.js"
+}
