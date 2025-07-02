@@ -1,5 +1,5 @@
-// regex replacement v0.0.1
-import { objectGet, objectHas } from "object-subscriptions/src/ObjectUtils.js";
+// regex replacement v0.0.2
+import { objectGet, objectHas } from "object-path-utilities";
 
 /**
  * Replace parts of a string formatted as stringpart1${pathpart1.pathpart2}stringpart2${pathpart1.pathpart3}

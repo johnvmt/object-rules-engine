@@ -1,5 +1,5 @@
 import RulesEngineAutomation from "../base/RulesEngineAutomation.js";
-import {resolvePath} from "../../utils/ObjectUtils.js";
+import {resolvePath} from "object-path-utilities";
 import subscriptionObjectActions from "./subscriptionObjectActions.js";
 
 class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
@@ -28,6 +28,7 @@ class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
             // run automations
 
             if(conditionsPass) {
+                this.log("debug", "Automation conditions pass, running actions");
                 for(let automationActionConfig of this._automationConfig.actions) {
                     await this._actions[automationActionConfig.action](...automationActionConfig.args); // TODO check what happens if args if not an array
                 }
@@ -56,7 +57,8 @@ class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
                         return this.valueFromAutomationPath(this.automationPathFromAutomationPathArg(arg));
                     else
                         return arg;
-                }
+                },
+                logger: this.logger
             }
         )
     }

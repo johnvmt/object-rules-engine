@@ -11,7 +11,9 @@ const subscriptionObjectActions = (automation) => {
                 ? automation.automationPathFromAutomationPathArg(pathArg) // trim prefix
                 : pathArg;
             const resolvedPath = automation.resolveAutomationPath(automationPath);
-            automation.object.set(resolvedPath, value);
+
+            if(automation.object.get(resolvedPath) !== value) // prevents unnecessary setting
+                automation.object.set(resolvedPath, value);
         }
     }
 }
