@@ -1,6 +1,6 @@
 import RulesEngineAutomation from "../base/RulesEngineAutomation.js";
-import {resolvePath} from "object-path-utilities";
 import subscriptionObjectActions from "./subscriptionObjectActions.js";
+import { argIsPathArg, pathFromPathArg, resolveBasePath } from "./subscriptionObjectPaths.js";
 
 class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
     constructor(automationConfig, object, options = {}) {
@@ -10,9 +10,10 @@ class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
             ...options
         });
 
+        this.log("debug", "Automation created");
+
         this._automationConfig = automationConfig;
         this._object = object;
-
         this._actions = subscriptionObjectActions(this);
 
         // TODO move this into functions
@@ -24,6 +25,8 @@ class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
             .map(pathArg => this.resolveAutomationPath(this.automationPathFromAutomationPathArg(pathArg)));
 
         this._cancelCalculator = this._object.calculate(resolvedAutomationConditionPaths, async () => {
+            this.log("debug", "Checking automation conditions");
+
             const conditionsPass = await this.conditionsPass();
             // run automations
 
@@ -78,8 +81,7 @@ class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
      * @returns {boolean}
      */
     argIsAutomationPathArg(arg) {
-        if(typeof arg === "string")
-            return arg.startsWith(this.options.pathPrefix);
+        return argIsPathArg(arg, this.options.pathPrefix);
     }
 
     /**
@@ -88,7 +90,7 @@ class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
      * @returns {string}
      */
     automationPathFromAutomationPathArg(pathArg) {
-        return pathArg.substring(this.options.pathPrefix.length);
+        return pathFromPathArg(pathArg, this.options.pathPrefix);
     }
 
     /**
@@ -97,20 +99,7 @@ class SubscriptionObjectRulesEngineAutomation extends RulesEngineAutomation {
      * @returns {*}
      */
     resolveAutomationPath(path) {
-        const basePaths = this.options.basePaths;
-        const basePathMatch = path.match(/^\[([^\]]+)](.*)$/); // check if uses a basepath
-
-        if(basePathMatch) { // uses base path
-            const basePathKey = basePathMatch[1];
-            const pathSuffix = basePathMatch[2];
-
-            if(!(basePathKey in basePaths))
-                throw new Error(`Unknown base path: ${basePathKey}`);
-
-            return resolvePath(pathSuffix, basePaths[basePathKey], this._object.options); // uses separator from object
-        }
-        else // absolute path
-            return resolvePath(path);
+        return resolveBasePath(path, this.options.basePaths, this._object.options);
     }
 
     destroy() {

@@ -27,7 +27,7 @@ const predicateArgs = (options, args) => {
  * @returns {false|boolean|*}
  */
 const predicateValidArgs = (predicate, options, args) => {
-    return (predicate === "object" && typeof predicate.validArgs === "function" && predicate.validArgs(...predicateArgs(options, args)));
+    return (typeof predicate === "object" && typeof predicate.validArgs === "function" && predicate.validArgs(...predicateArgs(options, args)));
 }
 
 /**
@@ -44,6 +44,32 @@ const conditionsArrayFromConditions = (conditions) => {
 }
 
 /**
+ * How one entry of a condition is to be read
+ *
+ * A key is either the name of a predicate or a path to a value. A predicate that declares
+ * validArgs and accepts what it has been handed takes that argument whole -- the list for in,
+ * say -- so there is nothing below it to descend into. Any other predicate handed an object is
+ * being handed conditions of its own.
+ *
+ * Both passes over a condition have to agree on this, or one of them will subscribe to paths the
+ * other never reads
+ *
+ * @param key
+ * @param arg
+ * @param predicates
+ * @param options
+ * @returns {"path"|"nested"|"literal"}
+ */
+const conditionEntryKind = (key, arg, predicates, options) => {
+    if(!predicates.hasOwnProperty(key))
+        return "path";
+    else if(predicateValidArgs(predicates[key], options, arg))
+        return "literal";
+    else
+        return (typeof arg === "object" && arg !== null) ? "nested" : "literal";
+}
+
+/**
  * Get args (paths or values) from conditions
  * @param conditions
  * @param options
@@ -57,11 +83,17 @@ const conditionsArgs = (conditions, options = {}) => {
 
             for(let condition of conditionsArray) {
                 for(let [predicateOrPathOrValue, arg] of Object.entries(condition)) {
-                    if(mergedPredicates.hasOwnProperty(predicateOrPathOrValue) && !predicateValidArgs(mergedPredicates[predicateOrPathOrValue], options, arg) && typeof arg === "object" && arg !== null) // predicate key
-                        conditionArgsInternal(arg, options, args);
-                    else { // value or path key
-                        args.add(predicateOrPathOrValue);
-                        conditionArgsInternal(arg, options, args);
+                    switch(conditionEntryKind(predicateOrPathOrValue, arg, mergedPredicates, options)) {
+                        case "nested":
+                            conditionArgsInternal(arg, options, args);
+                            break;
+                        case "path":
+                            args.add(predicateOrPathOrValue);
+                            // Below a path the value slot is filled in, and whether it is filled
+                            // is what decides how many arguments a predicate such as in is being
+                            // offered, so it has to be filled here too
+                            conditionArgsInternal(arg, {...options, value: undefined}, args);
+                            break;
                     }
                 }
             }
@@ -83,9 +115,14 @@ const conditionsArgs = (conditions, options = {}) => {
  */
 const sanitizedConditionsPass = (conditions, valuesByArg, predicates, options = {}) => {
     const executePredicateCondition = (predicateName, options, args) => {
-        const predicateFunction = (typeof predicates[predicateName] === "function")
-            ? predicates[predicateName]
-            : predicates[predicateName].function
+        const predicate = predicates[predicateName];
+
+        if(predicate === undefined)
+            throw new Error(`Unknown predicate "${predicateName}"`);
+
+        const predicateFunction = (typeof predicate === "function")
+            ? predicate
+            : predicate.function
 
         return predicateFunction(...predicateArgs(options, args));
     }
@@ -93,26 +130,21 @@ const sanitizedConditionsPass = (conditions, valuesByArg, predicates, options = 
     if(typeof conditions !== "object") // scalar
         return [executePredicateCondition(conditions, options)]
 
-    const conditionsArray = Array.isArray(conditions)
-        ? conditions
-        : Object.entries(conditions).map(([predicateOrPath, arg]) => {
-            return {[predicateOrPath]: arg}
-        });
+    const conditionsArray = conditionsArrayFromConditions(conditions);
 
     const results = [];
     for(let condition of conditionsArray) {
         for(let [predicateOrPathOrValue, arg] of Object.entries(condition)) {
-            if(predicates.hasOwnProperty(predicateOrPathOrValue)) { // predicate key
-                if(predicateValidArgs(predicates[predicateOrPathOrValue], options, arg))
-                    results.push(executePredicateCondition(predicateOrPathOrValue, options, arg));
-                else if(typeof arg === "object" && arg !== null)
+            switch(conditionEntryKind(predicateOrPathOrValue, arg, predicates, options)) {
+                case "nested":
                     results.push(executePredicateCondition(predicateOrPathOrValue, options, sanitizedConditionsPass(arg, valuesByArg, predicates, options)))
-                else
+                    break;
+                case "literal":
                     results.push(executePredicateCondition(predicateOrPathOrValue, options, arg))
-            }
-            else { // value or path key
-                const value = valuesByArg.get(predicateOrPathOrValue);
-                results.push(...(sanitizedConditionsPass(arg, valuesByArg, predicates, {...options, value: value})))
+                    break;
+                case "path":
+                    results.push(...(sanitizedConditionsPass(arg, valuesByArg, predicates, {...options, value: valuesByArg.get(predicateOrPathOrValue)})))
+                    break;
             }
         }
     }
@@ -125,7 +157,7 @@ const conditionsPass = async (conditions, options = {}) => {
         ? options.getValue
         : arg => arg; // default: return arg
 
-    const args = conditionsArgs(conditions, getValue, options);
+    const args = conditionsArgs(conditions, options);
     const values = await Promise.all(args.map(getValue)); // load all args at once
 
     if(args.length !== values.length)

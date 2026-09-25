@@ -1,9 +1,16 @@
 {
   "name": "object-rules-engine",
-  "version": "0.1.4",
+  "version": "0.2.1",
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
-    "object-subscriptions": "^1.0.3",
-    "object-path-utilities": "^1.0.1"
+    "object-subscriptions": "^1.0.4",
+    "object-path-utilities": "^1.0.3",
+    "object-template-string": "^0.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.8"
   },
   "repository": "https://github.com/johnvmt/object-rules-engine.git",
   "author": {

@@ -4,6 +4,7 @@
  * @returns {{set: *}}
  */
 const subscriptionObjectActions = (automation) => {
+    // Note: possible to log using automation.log
 
     return {
         set: (pathArg, value) => {
@@ -12,8 +13,7 @@ const subscriptionObjectActions = (automation) => {
                 : pathArg;
             const resolvedPath = automation.resolveAutomationPath(automationPath);
 
-            if(automation.object.get(resolvedPath) !== value) // prevents unnecessary setting
-                automation.object.set(resolvedPath, value);
+            automation.object.set(resolvedPath, value);
         }
     }
 }
